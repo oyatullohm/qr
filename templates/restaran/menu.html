@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="uz">
+{% load static %}
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Restoran Menyu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'main.css' %}">
+
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-logo-wrap" id="splash-logo">
+    <span class="splash-emoji">🍽</span>
+  </div>
+  <div class="splash-name" id="splash-name">Yuklanmoqda...</div>
+  <div class="splash-sub">Raqamli menyu</div>
+  <div class="splash-bar"></div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header>
+    <div class="header-top">
+      <div class="header-logo" id="header-logo"><a href="/">🍽</a></div>
+      <div class="header-info">
+        <div class="rest-name" id="rest-name">—</div>
+        <div class="rest-sub" id="rest-region">—</div>
+      </div>
+      <div class="header-actions">
+        <div class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Tema almashtirish">🌙</div>
+        <div class="cart-btn" onclick="openCart()">
+          <span class="cart-icon">🛒</span>
+          <span class="cart-badge" id="cart-badge"></span>
+        </div>
+        <div class="cart-btn">
+          <span class="cart-icon"><a href="/admin1/">👮‍♀️</a></span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs-wrap">
+    <div class="tabs" id="tabs"></div>
+  </div>
+
+  <div id="menu-scroll"></div>
+</div>
+
+<!-- CART BAR -->
+<div id="cart-bar">
+  <div class="cart-bar-inner" onclick="openCart()">
+    <div class="cbar-left">
+      <div class="cbar-count" id="cbar-count">0</div>
+      <div class="cbar-label">Savatcha</div>
+    </div>
+    <div class="cbar-total" id="cbar-total">0 so'm</div>
+  </div>
+</div>
+
+<!-- OVERLAY -->
+<div id="overlay" onclick="closeCart()"></div>
+
+<!-- CART SHEET -->
+<div id="cart-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head">
+    <div class="sheet-title">Savatcha</div>
+    <div class="sheet-close" onclick="closeCart()">✕</div>
+  </div>
+
+  <div id="cart-items"></div>
+
+  <div class="totals" id="totals-block">
+    <div class="total-row">
+      <span class="total-label">Taomlar:</span>
+      <span class="total-val" id="t-subtotal">0 so'm</span>
+    </div>
+
+    <div class="service-wrap">
+      <div class="service-info">
+        <span class="service-title">Ofitsiant xizmati</span>
+        <span class="service-desc" id="service-pct-label">+10%</span>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="service-toggle" onchange="calcTotal()">
+        <div class="tog-track"></div>
+        <div class="tog-thumb"></div>
+      </label>
+    </div>
+
+    <div class="total-row service" id="service-row" style="display:none">
+      <span class="total-label">Xizmat haqi:</span>
+      <span class="total-val" id="t-service">0 so'm</span>
+    </div>
+
+    <div class="total-row grand">
+      <span class="total-label">Jami:</span>
+      <span class="total-val" id="t-grand">0 so'm</span>
+    </div>
+  </div>
+
+  <div class="checkout-wrap">
+    <button class="checkout-btn" id="checkout-btn" onclick="checkout()">
+      Orqaga
+    </button>
+  </div>
+</div>
+
+<!-- ITEM MODAL -->
+<div id="itemModal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal" style="right: 10px !important;">x</span>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ABOUT MODAL -->
+<div id="about-modal" class="about-modal">
+  <div class="about-content">
+    <div class="about-header">
+      <h3>Biz haqimizda</h3>
+      <span onclick="closeAboutModal()">✕</span>
+    </div>
+    <p>Biz restoranlar uchun zamonaviy QR Menu va buyurtma tizimlarini ishlab chiqamiz.</p>
+    <a href="/shartnoma/?url={{ RESTORAN_SLUG }}" target="_blank" class="contract-btn">
+      📄 Shartnoma tuzish
+    </a>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+window.RESTORAN_SLUG = "{{ RESTORAN_SLUG }}";
+const API_BASE = `/api/v1/r/${RESTORAN_SLUG}`;
+
+let state = {
+  restoran: null,
+  categories: [],
+  cart: {},
+  serviceRate: 0.10,
+};
+
+// ===================== ASOSIY FUNKSIYALAR =====================
+
+async function init() {
+  try {
+    const data = await apiFetch(`${API_BASE}/full`);
+    state.restoran = data.restoran;
+    state.categories = data.categories;
+
+    if (data.restoran.service) {
+      state.serviceRate = parseFloat(data.restoran.service) / 100;
+      document.getElementById('service-pct-label').textContent =
+        `+${Math.round(state.serviceRate * 100)}%`;
+    }
+
+    renderHeader();
+    renderTabs();
+    renderMenu();
+  } catch (e) {
+    loadDemo();
+  } finally {
+    setTimeout(() => {
+      document.getElementById('splash').classList.add('hide');
+    }, 1200);
+  }
+}
+
+async function apiFetch(url) {
+  const res = await fetch(url, {
+    headers: { 'Accept': 'application/json' },
+    credentials: 'same-origin',
+  });
+  if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+
+function loadDemo() {
+  state.restoran = { name: "Samarqand", region: { name: "Samarqand" } };
+  state.serviceRate = 0.10;
+  state.categories = [];
+  renderHeader();
+  renderTabs();
+  renderMenu();
+}
+
+
+function renderHeader() {
+  const r = state.restoran;
+  document.getElementById('rest-name').textContent = r.name;
+  document.getElementById('splash-name').textContent = r.name;
+  document.title = r.name;
+  if (r.region) {
+    document.getElementById('rest-region').textContent = r.region.name;
+  }
+
+  const logoEl = document.getElementById('header-logo');
+  const splashLogo = document.getElementById('splash-logo');
+  if (r.image) {
+    const imgTag = `<a href="/"> <img src="${r.image}" alt="${r.name} logo"></a>`;
+    logoEl.innerHTML = imgTag;
+    
+    splashLogo.innerHTML = imgTag.replace('>', ' style="width:100%;height:100%;object-fit:cover">');
+  }
+  // Agar image yo'q bo'lsa emoji qoladi
+}
+
+function renderTabs() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = '';
+  state.categories.forEach((cat, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'tab' + (i === 0 ? ' active' : '');
+    btn.textContent = cat.name;
+    btn.onclick = () => scrollToCategory(cat.id, btn);
+    tabs.appendChild(btn);
+  });
+}
+
+function renderMenu() {
+  const scroll = document.getElementById('menu-scroll');
+  scroll.innerHTML = '';
+  
+  state.categories.forEach((cat) => {
+    if (!cat.menus || cat.menus.length === 0) return;
+    const sec = document.createElement('div');
+    sec.className = 'cat-section';
+    sec.id = `cat-${cat.id}`;
+    sec.innerHTML = `<div class="cat-title">${cat.name}</div>`;
+    const grid = document.createElement('div');
+    grid.className = 'items-grid';
+    cat.menus.forEach((item) => {
+      grid.appendChild(buildCard(item));
+    });
+    sec.appendChild(grid);
+    scroll.appendChild(sec);
+  });
+  
+  scroll.innerHTML += `
+    <div class="footer-info">
+      <a href="tel:+998900601044" class="footer-phone">📞 +998 90 060 10 44</a>
+      <button class="footer-about-btn" onclick="openAboutModal()">ℹ️ Biz haqimizda</button>
+    </div>
+  `;
+  
+  setupScrollSpy();
+}
+
+const EMOJIS = ['🍲','🥘','🍖','🥗','🍜','🥩','🍛','🫕','🧆','🥙'];
+
+function buildCard(item) {
+  const card = document.createElement('div');
+  card.className = 'menu-card';
+  card.id = `card-${item.id}`;
+
+  const price = parseFloat(item.current_price);
+  const oldPrice = item.is_discount
+    ? `<span class="card-old-price">${fmt(item.price)} so'm</span>` : '';
+
+  const qty = state.cart[item.id]?.qty || 0;
+  if (qty > 0) card.classList.add('in-cart');
+
+  const emoji = EMOJIS[item.id % EMOJIS.length];
+
+  card.innerHTML = `
+    <div class="card-img" onclick="openModal(${item.id})" style="cursor:pointer">
+      ${item.image
+        ? `<img src="${item.image}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`
+        : emoji}
+    </div>
+    <div class="card-body">
+      <div class="card-name" onclick="openModal(${item.id})" style="cursor:pointer">${item.name}</div>
+      ${item.description ? `<div class="card-desc">${item.description}</div>` : ''}
+      <div class="card-footer">
+        <div>${oldPrice}<span class="card-price">${fmt(price)} so'm</span></div>
+        <div class="qty-ctrl" id="qc-${item.id}">
+          ${qty === 0
+            ? `<div class="qty-btn plus" onclick="addItem(event,${item.id})">+</div>`
+            : `<div class="qty-btn" onclick="removeItem(event,${item.id})">−</div>
+               <span class="qty-num">${qty}</span>
+               <div class="qty-btn plus" onclick="addItem(event,${item.id})">+</div>`
+          }
+        </div>
+      </div>
+    </div>`;
+  return card;
+}
+
+// ===================== MAHSULOT TOPISH =====================
+
+function findItem(id) {
+  for (const cat of state.categories) {
+    const found = cat.menus?.find(m => m.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+// ===================== SAVATCHA FUNKSIYALARI =====================
+
+function addItem(e, id) {
+  e.stopPropagation();
+  const item = findItem(id);
+  if (!item) return;
+  if (!state.cart[id]) state.cart[id] = { item, qty: 0 };
+  state.cart[id].qty++;
+  updateCard(id);
+  updateCartBar();
+  showToast(`${item.name} savatchaga qo'shildi`);
+}
+
+function removeItem(e, id) {
+  e.stopPropagation();
+  if (!state.cart[id]) return;
+  state.cart[id].qty--;
+  if (state.cart[id].qty <= 0) delete state.cart[id];
+  updateCard(id);
+  updateCartBar();
+  if (isCartOpen()) renderCartItems();
+}
+
+function updateCard(id) {
+  const item = findItem(id);
+  if (!item) return;
+  const qty = state.cart[id]?.qty || 0;
+  const qc = document.getElementById(`qc-${id}`);
+  const card = document.getElementById(`card-${id}`);
+  if (!qc) return;
+
+  if (qty === 0) {
+    qc.innerHTML = `<div class="qty-btn plus" onclick="addItem(event,${id})">+</div>`;
+    card?.classList.remove('in-cart');
+  } else {
+    qc.innerHTML = `
+      <div class="qty-btn" onclick="removeItem(event,${id})">−</div>
+      <span class="qty-num">${qty}</span>
+      <div class="qty-btn plus" onclick="addItem(event,${id})">+</div>`;
+    card?.classList.add('in-cart');
+  }
+}
+
+function cartCount() {
+  return Object.values(state.cart).reduce((s, v) => s + v.qty, 0);
+}
+
+function cartSubtotal() {
+  return Object.values(state.cart).reduce((s, v) => s + parseFloat(v.item.current_price) * v.qty, 0);
+}
+
+function updateCartBar() {
+  const count = cartCount();
+  const sub = cartSubtotal();
+  const badge = document.getElementById('cart-badge');
+  const bar = document.getElementById('cart-bar');
+
+  badge.textContent = count;
+  badge.className = 'cart-badge' + (count > 0 ? ' show' : '');
+  bar.className = 'cart-bar' + (count > 0 ? ' show' : '');
+
+  document.getElementById('cbar-count').textContent = count;
+  document.getElementById('cbar-total').textContent = fmt(sub) + ' so\'m';
+}
+
+function openCart() {
+  if (cartCount() === 0) { showToast('Savatcha bo\'sh'); return; }
+  document.getElementById('cart-sheet').classList.add('show');
+  document.getElementById('overlay').classList.add('show');
+  renderCartItems();
+  calcTotal();
+}
+
+function closeCart() {
+  document.getElementById('cart-sheet').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+function isCartOpen() {
+  return document.getElementById('cart-sheet').classList.contains('show');
+}
+
+function renderCartItems() {
+  const el = document.getElementById('cart-items');
+  const items = Object.values(state.cart);
+
+  if (items.length === 0) {
+    el.innerHTML = `<div class="empty-cart"><div class="empty-icon">🛒</div><p>Savatcha bo'sh</p></div>`;
+    document.getElementById('totals-block').style.display = 'none';
+    document.getElementById('checkout-btn').disabled = true;
+    return;
+  }
+
+  document.getElementById('totals-block').style.display = 'block';
+  document.getElementById('checkout-btn').disabled = false;
+
+  el.innerHTML = '';
+  items.forEach(({ item, qty }) => {
+    const div = document.createElement('div');
+    div.className = 'cart-item';
+    const emoji = EMOJIS[item.id % EMOJIS.length];
+    div.innerHTML = `
+      <div class="ci-img">${item.image
+        ? `<img src="${item.image}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`
+        : emoji}</div>
+      <div style="flex:1;min-width:0">
+        <div class="ci-name">${item.name}</div>
+        <div class="ci-price">${fmt(parseFloat(item.current_price) * qty)} so'm</div>
+      </div>
+      <div class="ci-qty">
+        <div class="ci-btn" onclick="ciRemove(${item.id})">−</div>
+        <span class="ci-n" id="cin-${item.id}">${qty}</span>
+        <div class="ci-btn plus" onclick="ciAdd(${item.id})">+</div>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+function ciAdd(id) {
+  addItem({ stopPropagation: ()=>{} }, id);
+  const n = document.getElementById(`cin-${id}`);
+  if (n) n.textContent = state.cart[id]?.qty || 0;
+  const priceEl = n?.closest('.cart-item')?.querySelector('.ci-price');
+  if (priceEl && state.cart[id]) {
+    priceEl.textContent = fmt(parseFloat(state.cart[id].item.current_price) * state.cart[id].qty) + ' so\'m';
+  }
+  calcTotal();
+}
+
+function ciRemove(id) {
+  removeItem({ stopPropagation: ()=>{} }, id);
+  if (!state.cart[id]) {
+    renderCartItems();
+  } else {
+    const n = document.getElementById(`cin-${id}`);
+    if (n) n.textContent = state.cart[id].qty;
+    const priceEl = n?.closest('.cart-item')?.querySelector('.ci-price');
+    if (priceEl) priceEl.textContent = fmt(parseFloat(state.cart[id].item.current_price) * state.cart[id].qty) + ' so\'m';
+  }
+  calcTotal();
+}
+
+function calcTotal() {
+  const sub = cartSubtotal();
+  const useService = document.getElementById('service-toggle').checked;
+  const serviceAmt = useService ? sub * state.serviceRate : 0;
+  const grand = sub + serviceAmt;
+
+  document.getElementById('t-subtotal').textContent = fmt(sub) + ' so\'m';
+  document.getElementById('t-service').textContent = fmt(serviceAmt) + ' so\'m';
+  document.getElementById('t-grand').textContent = fmt(grand) + ' so\'m';
+  document.getElementById('service-row').style.display = useService ? 'flex' : 'none';
+  document.getElementById('cbar-total').textContent = fmt(grand) + ' so\'m';
+}
+
+function checkout() {
+  closeCart();
+  showToast('✓ Buyurtma qabul qilindi');
+}
+
+// ===================== SCROLL SPY =====================
+
+let isTabClick = false;
+
+function scrollToCategory(catId, btn) {
+  isTabClick = true;
+  const sec = document.getElementById(`cat-${catId}`);
+  if (sec) {
+    sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  setTimeout(() => { isTabClick = false; }, 700);
+}
+
+function setupScrollSpy() {
+  const scroll = document.getElementById('menu-scroll');
+  scroll.onscroll = () => {
+    if (isTabClick) return;
+    const sections = state.categories
+      .map(c => document.getElementById(`cat-${c.id}`))
+      .filter(Boolean);
+    const scrollTop = scroll.scrollTop + 120;
+    let active = 0;
+    sections.forEach((sec, i) => {
+      if (sec.offsetTop <= scrollTop) active = i;
+    });
+    document.querySelectorAll('.tab').forEach((t, i) => {
+      t.classList.toggle('active', i === active);
+    });
+    const tabs = document.querySelectorAll('.tab');
+    tabs[active]?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  };
+}
+
+// ===================== MODAL FUNKSIYALARI =====================
+
+// Modal elementlari
+const modal = document.getElementById('itemModal');
+const modalBody = document.getElementById('modal-body');
+const closeModalBtn = document.querySelector('.close-modal');
+
+// Mahsulotni ID bo'yicha topish (state.categories dan)
+function getItemById(id) {
+  for (const cat of state.categories) {
+    const found = cat.menus?.find(m => m.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+// Modalni ochish
+// Modalni ochish funksiyasi (to'liq versiya)
+function openModal(itemId) {
+  const item = getItemById(itemId);
+  if (!item) {
+    showToast('Mahsulot topilmadi');
+    return;
+  }
+  
+  const emoji = EMOJIS[item.id % EMOJIS.length];
+  const price = parseFloat(item.current_price || item.price);
+  
+  // Description ni to'liq ko'rsatish
+  let descriptionHTML = '';
+  if (item.description) {
+    descriptionHTML = `
+      <div class="modal-description">
+        ${item.description.replace(/\n/g, '<br>')}
+      </div>
+    `;
+  }
+  
+  modalBody.innerHTML = `
+    <div class="modal-image">
+      ${item.image 
+        ? `<img src="${item.image}" alt="${item.name}">` 
+        : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:80px;background:#f5f5f5;border-radius:10px">${emoji}</div>`
+      }
+    </div>
+    <div class="modal-title">${item.name}</div>
+    ${descriptionHTML}
+    <div class="modal-price">💰 ${fmt(price)} so'm</div>
+    ${item.is_link_instagram && item.link_instagram 
+      ? `<a href="${item.link_instagram}" target="_blank" class="modal-instagram-link">
+          📸 Instagram'da ko'rish
+         </a>` 
+      : ''
+    }
+    <div style="margin-top:20px;padding-top:15px;border-top:1px solid #eee;display:flex;justify-content:space-between;align-items:center;">
+      <div class="qty-ctrl" id="modal-qty-ctrl">
+        <div class="qty-btn" onclick="modalRemoveItem()">−</div>
+        <span class="qty-num" id="modal-qty-num">0</span>
+        <div class="qty-btn plus" onclick="modalAddItem()">+</div>
+      </div>
+      <div style="font-weight:bold;font-size:18px;color:#2e7d32" id="modal-total-price">0 so'm</div>
+    </div>
+  `;
+  
+  window.modalItemId = itemId;
+  updateModalQty();
+  
+  modal.style.display = 'block';
+  document.body.style.overflow = 'hidden';
+}
+// Modalni yopish
+function closeModalFunc() {
+  modal.style.display = 'none';
+  document.body.style.overflow = 'auto';
+}
+
+// Modalda qo'shish
+function modalAddItem() {
+  const id = window.modalItemId;
+  if (!id) return;
+  const item = findItem(id);
+  if (!item) return;
+  if (!state.cart[id]) state.cart[id] = { item, qty: 0 };
+  state.cart[id].qty++;
+  updateCard(id);
+  updateCartBar();
+  updateModalQty();
+  showToast(`${item.name} savatchaga qo'shildi`);
+}
+
+// Modalda ayirish
+function modalRemoveItem() {
+  const id = window.modalItemId;
+  if (!id) return;
+  if (!state.cart[id]) return;
+  state.cart[id].qty--;
+  if (state.cart[id].qty <= 0) delete state.cart[id];
+  updateCard(id);
+  updateCartBar();
+  updateModalQty();
+}
+
+// Modal qty ni yangilash
+function updateModalQty() {
+  const id = window.modalItemId;
+  if (!id) return;
+  const qty = state.cart[id]?.qty || 0;
+  const numEl = document.getElementById('modal-qty-num');
+  const totalEl = document.getElementById('modal-total-price');
+  const item = findItem(id);
+  if (numEl) numEl.textContent = qty;
+  if (totalEl && item) {
+    const price = parseFloat(item.current_price || item.price);
+    totalEl.textContent = qty > 0 ? fmt(price * qty) + ' so\'m' : '0 so\'m';
+  }
+}
+
+// Event listenerlar
+closeModalBtn?.addEventListener('click', closeModalFunc);
+window.addEventListener('click', (event) => {
+  if (event.target === modal) closeModalFunc();
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && modal.style.display === 'block') closeModalFunc();
+});
+
+// ===================== YORDAMCHI FUNKSIYALAR =====================
+
+function fmt(n) {
+  return Math.round(n).toLocaleString('uz-UZ');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+let toastTimer;
+
+function toggleTheme() {
+  const isLight = document.documentElement.classList.toggle('light');
+  document.getElementById('theme-btn').textContent = isLight ? '☀️' : '🌙';
+  try { localStorage.setItem('theme', isLight ? 'light' : 'dark'); } catch(e) {}
+}
+
+function applyStoredTheme() {
+  try {
+    const t = localStorage.getItem('theme');
+    if (t === 'light') {
+      document.documentElement.classList.add('light');
+      document.getElementById('theme-btn').textContent = '☀️';
+    }
+  } catch(e) {}
+}
+
+function openAboutModal() {
+  document.getElementById('about-modal').classList.add('show');
+}
+
+function closeAboutModal() {
+  document.getElementById('about-modal').classList.remove('show');
+}
+
+// ===================== ISHGA TUSHIRISH =====================
+
+applyStoredTheme();
+init();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Restoran.uz — Eng yaxshi restoranlar</title>
+<meta name="description" content="O'zbekiston bo'ylab eng yaxshi restoranlar, kafelar va milliy taomlar.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'home.css' %}">
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<header class="header">
+  <div class="container header-inner">
+    <a href="/" class="logo">🍽 Restoran<span>.uz</span></a>
+    <div style="display:flex; gap:12px; align-items:center;">
+      <a href="/admin1/" style="color:var(--text-muted); text-decoration:none; font-size:14px;">🔐 Admin</a>
+      <a href="/shartnoma/" style="background:var(--amber); color:#1a1308; padding:6px 18px; border-radius:999px; text-decoration:none; font-weight:600; font-size:13px;">📄 Shartnoma</a>
+    </div>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="container">
+    <h1>Eng yaxshi taomlar <br><span>eng yaxshi joylarda</span></h1>
+    <p>O'zbekiston bo'ylab 150+ restoran, kafe va milliy taomxonalar.</p>
+
+    <div class="search-container">
+      <div class="search-box" id="searchBox">
+        <input type="text" id="searchInput" placeholder="Restoran nomi (masalan: Osh markazi)" autocomplete="off">
+        <button type="button" id="searchBtn">🔍 Qidirish</button>
+      </div>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== STATS ===== -->
+<!-- <div class="container stats-bar">
+  <div class="stat-item"><span class="num" id="statTotal">—</span><span class="label">Restoranlar</span></div>
+  <div class="stat-item"><span class="num" id="statActive">—</span><span class="label">Faol</span></div>
+  <div class="stat-item"><span class="num" id="statViews">—</span><span class="label">Ko'rishlar</span></div>
+  <div class="stat-item"><span class="num" id="statRegions">—</span><span class="label">Shaharlar</span></div>
+</div> -->
+
+<!-- ===== FILTERS ===== -->
+
+<!-- ===== RESTAURANTS ===== -->
+<div class="container">
+  <h2 class="section-title">🍽 Barcha <span>restoranlar</span></h2>
+  <div class="grid" id="restaurantGrid">
+    <div class="skeleton"><div class="skeleton-image"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div></div>
+    <div class="skeleton"><div class="skeleton-image"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div></div>
+    <div class="skeleton"><div class="skeleton-image"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line medium"></div></div></div>
+  </div>
+</div>
+
+<!-- ===== FOOTER ===== -->
+<footer class="footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div><h4>🍽 Restoran.uz</h4><p style="color:var(--text-muted);">O'zbekiston bo'ylab restoranlar va kafelar uchun raqamli menyu tizimi.</p></div>
+      <div>
+        <h4>📄 Havolalar</h4>
+        <a href="/admin1/">🔐 Admin kirish</a>
+        <a href="/shartnoma/">📄 Shartnoma tuzish</a>
+        <!-- <a href="/help/">❓ Yordam</a> -->
+      </div>
+      <div>
+        <h4>📞 Bog'lanish</h4>
+        <a href="tel:+998900601044">📱 +998 90 060 10 44</a>
+        <a href="mailto:info@restoran.uz">✉️ info@restoran.uz</a>
+      </div>
+    </div>
+    <div class="footer-bottom">© 2024 Restoran.uz — Barcha huquqlar himoyalangan.</div>
+  </div>
+</footer>
+
+<script>
+  // ===================== STATE =====================
+  let allRestaurants = [];
+  let currentFilter = 'all';
+  let searchQuery = '';
+  let suggestTimeout = null;
+
+  // ===================== DOM REFS =====================
+  const grid = document.getElementById('restaurantGrid');
+  const searchInput = document.getElementById('searchInput');
+  const searchBtn = document.getElementById('searchBtn');
+  const suggestions = document.getElementById('suggestions');
+
+  // ===================== API =====================
+  async function loadRestaurants() {
+    try {
+      let url = '/api/restaurants/';
+      const params = new URLSearchParams();
+
+      if (searchQuery) params.append('search', searchQuery);
+
+      if (currentFilter === 'active') params.append('status', 'active');
+      else if (currentFilter === 'inactive') params.append('status', 'inactive');
+      else if (currentFilter === 'halal') params.append('halal', 'true');
+      else if (currentFilter === 'vegan') params.append('vegan', 'true');
+      else if (currentFilter === 'round') params.append('round', 'true');
+
+      if (params.toString()) url += '?' + params.toString();
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      allRestaurants = data.results || data || [];
+      
+    //   updateStats(allRestaurants);
+      renderGrid(allRestaurants);
+
+    } catch (err) {
+      console.error('Xatolik:', err);
+      grid.innerHTML = `<div class="empty-state"><div style="font-size:48px;">⚠️</div><p>Ma'lumotlarni yuklab bo'lmadi.</p><button onclick="loadRestaurants()" style="margin-top:12px;padding:10px 24px;background:var(--amber);border:none;border-radius:8px;color:#1a1308;font-weight:600;cursor:pointer;">Qayta urinish</button></div>`;
+    }
+  }
+
+  // ===== SUGGEST (Avtoto'ldirish) =====
+  async function fetchSuggestions(query) {
+    if (query.length < 2) {
+      suggestions.classList.remove('show');
+      return;
+    }
+    try {
+      const res = await fetch(`/api/restaurants/suggest/?q=${encodeURIComponent(query)}`);
+      const data = await res.json();
+      
+      if (!data.results || data.results.length === 0) {
+        suggestions.classList.remove('show');
+        return;
+      }
+
+      suggestions.innerHTML = data.results.map(item => `
+        <div class="suggestion-item" onclick="selectSuggestion('${item.name}')">
+          <div class="main">${highlightText(item.name, query)}</div>
+          <div class="sub">📍 ${item.region?.name || 'Manzil yo\'q'} • 👁 ${item.view_url || 0}</div>
+        </div>
+      `).join('');
+
+      // Menyular
+      if (data.menus && data.menus.length > 0) {
+        suggestions.innerHTML += data.menus.map(name => `
+          <div class="suggestion-item" onclick="selectSuggestion('${name}')">
+            <div class="main">🍽 ${highlightText(name, query)}</div>
+            <div class="sub">Taom</div>
+          </div>
+        `).join('');
+      }
+
+      suggestions.classList.add('show');
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  function highlightText(text, query) {
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return text.slice(0, idx) + '<span class="highlight">' + text.slice(idx, idx + query.length) + '</span>' + text.slice(idx + query.length);
+  }
+
+  function selectSuggestion(value) {
+    searchInput.value = value;
+    suggestions.classList.remove('show');
+    searchQuery = value;
+    loadRestaurants();
+  }
+let userLocation = null;
+
+navigator.geolocation?.getCurrentPosition(
+  (position) => {
+    userLocation = {
+      lat: position.coords.latitude,
+      lon: position.coords.longitude
+    };
+    renderRestaurants(items); // 👈 joylashuv kelgach kartalarni qayta chizamiz
+  },
+  (error) => console.warn('Joylashuv olinmadi:', error.message),
+  { enableHighAccuracy: true, timeout: 6000 }
+);
+
+// Ikki nuqta orasidagi masofa (km) — Haversine formula
+function getDistance(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+  // ===== RENDER =====
+  function renderGrid(items) {
+    if (items.length === 0) {
+      grid.innerHTML = `<div class="empty-state"><div style="font-size:48px;">🔍</div><p>Hech qanday restoran topilmadi.</p><p style="font-size:14px;color:var(--text-muted);">Filtrni o'zgartirib ko'ring yoki boshqa so'rov kiriting.</p></div>`;
+      return;
+    }
+    grid.innerHTML = items.map(r => {
+  const region = r.region?.name || r.region || "Manzil yo'q";
+  const tags = [];
+  const menuLink = r.url ? `/${r.url}` : '#';
+
+  // 📍 Masofa
+  let distanceHtml = '';
+  if (userLocation && r.lat && r.lon) {
+    const dist = getDistance(userLocation.lat, userLocation.lon, r.lat, r.lon);
+    distanceHtml = `<span class="card-distance"> · ${dist.toFixed(1)} km</span>`;
+  }
+
+  // 🗺 Xaritada ochish havolasi
+  const mapLink = (r.lat && r.lon)
+    ? `https://www.google.com/maps?q=${r.lat},${r.lon}`
+    : null;
+
+  return `
+    <div class="card" onclick="window.location.href='r${menuLink}'">
+      <div class="card-image">
+        ${r.image ? `<img src="${r.image}" alt="${r.name}" loading="lazy">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:50px;background:var(--surface-2);">🍽</div>`}
+        <span class="card-badge ${r.is_active ? 'active' : 'inactive'}">${r.is_active ? 'Faol' : 'Nofaol'}</span>
+      </div>
+      <div class="card-body">
+        <div class="card-name">${r.name || "Nomsiz"}</div>
+        <div class="card-region">📍 ${region}${distanceHtml}</div>
+        <div class="card-desc">${r.description || "Tavsif kiritilmagan."}</div>
+        <div class="card-footer">
+          <div class="card-tags">${tags.map(t => `<span class="card-tag">${t}</span>`).join('')}</div>
+          ${mapLink ? `<a href="${mapLink}" target="_blank" onclick="event.stopPropagation()" class="card-tag" style="text-decoration:none;">🗺 Xaritada</a>` : ''}
+        </div>
+      </div>
+    </div>
+  `;
+}).join('');
+
+  }
+  // ===== FILTERS =====
+  function setFilter(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.filter === filter);
+    });
+    loadRestaurants();
+  }
+
+  // ===== SEARCH =====
+  function doSearch() {
+    searchQuery = searchInput.value.trim();
+    suggestions.classList.remove('show');
+    loadRestaurants();
+  }
+
+  // ===== EVENTS =====
+  searchBtn.addEventListener('click', doSearch);
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doSearch();
+    console.log(e.key)
+  });
+
+  searchInput.addEventListener('input', (e) => {
+    clearTimeout(suggestTimeout);
+    const val = e.target.value.trim();
+    if (val.length >= 2) {
+      suggestTimeout = setTimeout(() => fetchSuggestions(val), 300);
+    } else {
+      suggestions.classList.remove('show');
+    }
+  });
+
+  // Tashqariga bosganda suggest yopilishi
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-container')) {
+      suggestions.classList.remove('show');
+    }
+  });
+
+  // ===== INIT =====
+  loadRestaurants();
+</script>
+
+</body>
+</html>

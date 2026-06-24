@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Kirish — Restoran Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,500;0,700;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'auth.css' %}">
+
+</head>
+<body>
+<div class="page">
+  <div class="brand">
+    <div class="brand-icon"><a href="/">🍽</a></div>
+    <div class="brand-name">Restoran Panel</div>
+    <div class="brand-sub">Menyu boshqaruv tizimi</div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('login')">Kirish</button>
+      <button class="tab-btn" onclick="switchTab('register')">Ro'yxatdan o'tish</button>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="panel active" id="panel-login">
+      <div class="form-title">Xush kelibsiz</div>
+      <div class="form-sub">Hisobingizga kiring</div>
+      <div class="alert error" id="login-err"></div>
+      <div class="field">
+        <label>Foydalanuvchi nomi</label>
+        <input type="text" id="l-username" placeholder="username" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Parol</label>
+        <div class="pass-wrap">
+          <input type="password" id="l-password" placeholder="••••••••" autocomplete="current-password">
+          <button type="button" class="pass-eye" onclick="togglePass('l-password',this)">👁</button>
+        </div>
+      </div>
+      <button class="btn-submit" id="login-btn" onclick="doLogin()">
+        <div class="btn-spinner" id="login-spin"></div>
+        <span id="login-label">Kirish</span>
+      </button>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="panel" id="panel-register">
+      <div class="form-title">Yangi hisob</div>
+      <div class="form-sub">Restoran egasi sifatida ro'yxatdan o'ting</div>
+      <div class="alert error" id="reg-err"></div>
+      <div class="alert success" id="reg-ok"></div>
+   
+      <div class="section-label">👤 Foydalanuvchi ma'lumotlari</div>
+
+      <div class="field">
+        <label>Username *</label>
+        <input type="text" id="r-username" placeholder="foydalanuvchi_nomi">
+      </div>
+      <div class="field">
+        <label>Telefon raqami</label>
+        <input type="text" id="r-phone" placeholder="+998 90 123 45 67">
+      </div>
+      <div class="field">
+        <label>Parol *</label>
+        <div class="pass-wrap">
+          <input type="password" id="r-pass" placeholder="Kamida 8 ta belgi">
+          <button type="button" class="pass-eye" onclick="togglePass('r-pass',this)">👁</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Parolni tasdiqlang *</label>
+        <div class="pass-wrap">
+          <input type="password" id="r-pass2" placeholder="Takrorlang">
+          <button type="button" class="pass-eye" onclick="togglePass('r-pass2',this)">👁</button>
+        </div>
+      </div>
+
+      <div class="section-label">🏪 Restoran ma'lumotlari</div>
+      <div class="field">
+        <label>Restoran nomi *</label>
+        <input type="text" id="r-rname" placeholder="Masalan: Samarqand Oshi">
+      </div>
+      <div class="field">
+        <label>URL (slug) *</label>
+        <input type="text" id="r-slug" placeholder="samarqand-oshi">
+        <div style="font-size: 11px; color: var(--text2); margin-top: 4px;">Faqat lotin harflari, raqamlar va defis</div>
+      </div>     
+      
+      <div class="field">
+        <label>Viloyat</label>
+        <select id="r-region">
+          <option value="">— tanlang —</option>
+          <option value="Andijon">Andijon</option>
+          <option value="Buxoro">Buxoro</option>
+          <option value="Sirdaryo">Sirdaryo</option>
+          <option value="Surxondaryo">Surxondaryo</option>
+          <option value="Navoiy">Navoiy</option>
+          <option value="Jizzax">Jizzax</option>
+          <option value="Namangan">Namangan</option>
+          <option value="Tashkent">Tashkent</option>
+          <option value="Fargona">Fargona</option>
+          <option value="Samarqand">Samarqand</option>
+          <option value="Qoraqolpogiston">Qoraqolpogiston</option>
+
+        </select>
+      </div>
+      <div class="field">
+        <label>Tavsif (ixtiyoriy)</label>
+        <input type="text" id="r-desc" placeholder="Qisqacha tavsif">
+      </div>
+
+      <button class="btn-submit" id="reg-btn" onclick="doRegister()">
+        <div class="btn-spinner" id="reg-spin"></div>
+        <span id="reg-label">Ro'yxatdan o'tish</span>
+      </button>
+     
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// TO'LIQ TUZATILGAN JAVASCRIPT
+// ============================================================
+
+// Auto slug from name
+document.getElementById('r-rname').addEventListener('input', function() {
+  const slug = this.value.toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/g, '')
+    .replace(/-+/g, '-');
+  document.getElementById('r-slug').value = slug;
+});
+
+// Load regions
+async function loadRegions() {
+  try {
+    const r = await fetch('/api/regions/');
+    if (r.ok) {
+      const data = await r.json();
+      const sel = document.getElementById('r-region');
+      const regions = data.results || data;
+      regions.forEach(rg => {
+        sel.innerHTML += `<option value="${rg.id}">${rg.name}</option>`;
+      });
+    }
+  } catch(e) {
+    // Fallback regions
+    const regions = ['Toshkent', 'Samarqand', 'Buxoro', 'Andijon', 'Namangan', 'Farg\'ona',
+     'Qashqadaryo', 'Surxondaryo', 'Xorazm', 'Sirdaryo', 'Jizzax', 'Navoiy'];
+    const sel = document.getElementById('r-region');
+    regions.forEach((n, i) => {
+      sel.innerHTML += `<option value="${n}">${n}</option>`;
+    });
+  }
+}
+
+// Switch between login and register tabs
+function switchTab(tab) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  event.target.classList.add('active');
+  
+  // Clear alerts when switching tabs
+  document.getElementById('login-err').classList.remove('show');
+  document.getElementById('reg-err').classList.remove('show');
+  document.getElementById('reg-ok').classList.remove('show');
+}
+
+// Toggle password visibility
+function togglePass(id, btn) {
+  const inp = document.getElementById(id);
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  btn.textContent = inp.type === 'password' ? '👁' : '🙈';
+}
+
+// Set loading state for buttons
+function setLoading(btnId, spinId, labelId, loading, labelText) {
+  const btn = document.getElementById(btnId);
+  const spin = document.getElementById(spinId);
+  const label = document.getElementById(labelId);
+  
+  if (btn) btn.disabled = loading;
+  if (spin) spin.style.display = loading ? 'inline-block' : 'none';
+  if (label) label.textContent = loading ? '' : labelText;
+}
+
+// Show alert message
+function showAlert(id, msg, type = 'error') {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg;
+  el.className = `alert ${type} show`;
+  
+  // Auto hide after 5 seconds for success messages
+  if (type === 'success') {
+    setTimeout(() => {
+      el.classList.remove('show');
+    }, 5000);
+  }
+}
+
+// Get cookie value by name
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
+
+// Set cookie with proper parameters
+function setCookie(name, value, maxAgeSeconds) {
+  document.cookie = `${name}=${value}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax`;
+}
+
+// ============================================================
+// LOGIN FUNCTION
+// ============================================================
+async function doLogin() {
+  const username = document.getElementById('l-username').value.trim();
+  const password = document.getElementById('l-password').value;
+  
+  // Validation
+  if (!username || !password) {
+    showAlert('login-err', 'Iltimos, barcha maydonlarni to\'ldiring');
+    return;
+  }
+
+  setLoading('login-btn', 'login-spin', 'login-label', true, 'Kirish');
+  
+  try {
+    const response = await fetch('/api/auth/login/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        username: username, 
+        password: password 
+      }),
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok && data.token) {
+      // ✅ To'g'ri cookie o'rnatish
+      setCookie('access_token', data.token, 43200);  // 12 soat
+      setCookie('refresh_token', data.refresh, 604800);  // 7 kun
+      
+      // ✅ Admin panelga o'tish
+      window.location.href = '/admin1/';
+    } else {
+      const errorMsg = data.message || data.detail || 'Login yoki parol noto\'g\'ri';
+      showAlert('login-err', errorMsg);
+    }
+  } catch (error) {
+    console.error('Login error:', error);
+    showAlert('login-err', 'Server bilan bog\'lanishda xatolik. Iltimos, qaytadan urining.');
+  } finally {
+    setLoading('login-btn', 'login-spin', 'login-label', false, 'Kirish');
+  }
+}
+
+// ============================================================
+// REGISTER FUNCTION
+// ============================================================
+async function doRegister() {
+  // Get form values
+  const username = document.getElementById('r-username').value.trim();
+  const phone = document.getElementById('r-phone').value.trim();
+  const password = document.getElementById('r-pass').value;
+  const password2 = document.getElementById('r-pass2').value;
+  const restoranName = document.getElementById('r-rname').value.trim();
+  const slug = document.getElementById('r-slug').value.trim();
+  const region = document.getElementById('r-region').value;
+  const description = document.getElementById('r-desc').value.trim();
+  
+  // Validations
+  if (!username) {
+    showAlert('reg-err', 'Username kiriting');
+    return;
+  }
+  if (!password) {
+    showAlert('reg-err', 'Parol kiriting');
+    return;
+  }
+  if (password !== password2) {
+    showAlert('reg-err', 'Parollar mos kelmadi');
+    return;
+  }
+  if (password.length < 8) {
+    showAlert('reg-err', 'Parol kamida 8 ta belgidan iborat bo\'lishi kerak');
+    return;
+  }
+  if (!restoranName) {
+    showAlert('reg-err', 'Restoran nomini kiriting');
+    return;
+  }
+  if (!slug) {
+    showAlert('reg-err', 'URL ni kiriting');
+    return;
+  }
+  if (!/^[a-z0-9\-]+$/.test(slug)) {
+    showAlert('reg-err', 'URL faqat lotin harflari, raqamlar va defisdan iborat bo\'lishi kerak');
+    return;
+  }
+
+  setLoading('reg-btn', 'reg-spin', 'reg-label', true, 'Ro\'yxatdan o\'tish');
+  const location = await getDeviceLocation();
+  try {
+    const response = await fetch('/api/auth/register/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        username: username,
+        password: password,
+        password2: password2,
+        phone: phone,
+        restaran: {
+          name: restoranName,
+          slug: slug,
+          region: region || null,
+          desc: description,
+          lat: location.lat,      // 👈 qo'shildi
+          lon: location.lon       // 👈 qo'shildi
+        }
+      }),
+      credentials: 'same-origin'
+    });
+    
+    const data = await response.json();
+    
+    if (response.ok && data.token) {
+      // ✅ To'g'ri cookie o'rnatish
+      setCookie('access_token', data.token, 43200);
+      setCookie('refresh_token', data.refresh, 604800);
+      
+      showAlert('reg-ok', 'Muvaffaqiyatli ro\'yxatdan o\'tdingiz! Admin panelga o\'tilmoqda...', 'success');
+      
+      // ✅ Admin panelga o'tish
+      setTimeout(() => {
+        window.location.href = '/admin1/';
+      }, 1500);
+    } else {
+      const errorMsg = data.message || Object.values(data).flat().join(' | ');
+      showAlert('reg-err', errorMsg || 'Ro\'yxatdan o\'tishda xatolik yuz berdi');
+    }
+  } catch (error) {
+    console.error('Register error:', error);
+    showAlert('reg-err', 'Server bilan bog\'lanishda xatolik. Iltimos, qaytadan urining.');
+  } finally {
+    setLoading('reg-btn', 'reg-spin', 'reg-label', false, 'Ro\'yxatdan o\'tish');
+  }
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    const loginPanel = document.getElementById('panel-login');
+    if (loginPanel && loginPanel.classList.contains('active')) {
+      doLogin();
+    } else {
+      doRegister();
+    }
+  }
+});
+
+// Initialize
+loadRegions();
+function getDeviceLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve({ lat: null, lon: null });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          lat: position.coords.latitude,
+          lon: position.coords.longitude
+        });
+      },
+      (error) => {
+        console.warn('Joylashuvni olishda xatolik:', error.message);
+        resolve({ lat: null, lon: null }); // ro'yxatdan o'tishni bloklamaymiz
+      },
+      { enableHighAccuracy: true, timeout: 6000 }
+    );
+  });
+}
+</script>
+</body>
+</html>

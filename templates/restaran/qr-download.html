@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>QR Kod — Restoran Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300;500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'qr-download.css' %}">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">📱</div>
+      <div class="logo-text">
+        <h1>QR Kod</h1>
+        <p>Restoran menyusi</p>
+      </div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" onclick="toggleTheme()" id="theme-btn">🌙</button>
+      <button class="icon-btn" onclick="goBack()" title="Ortga">←</button>
+    </div>
+  </div>
+
+  <div class="qr-card">
+    <div class="restoran-name" id="restoran-name">Yuklanmoqda...</div>
+    <div class="restoran-url" id="restoran-url">restoran.uz</div>
+    
+    <div class="qr-wrapper">
+      <div id="qr-container" class="qr-loading">
+        <div class="spinner"></div>
+      </div>
+    </div>
+    
+    <div class="qr-url" id="qr-url-display">loading...</div>
+    
+    <div class="btn-group">
+      <button class="btn btn-primary" onclick="downloadQR()">
+        ⬇️ Yuklab olish
+      </button>
+      <button class="btn btn-secondary" onclick="copyUrl()">
+        📋 URL nusxalash
+      </button>
+      <button class="btn btn-secondary" onclick="shareQR()">
+        📤 Ulashish
+      </button>
+    </div>
+  </div>
+
+  <div class="info-card">
+    <div class="info-title">
+      <span>ℹ️</span> QR kod haqida
+    </div>
+    <div class="info-text">
+      Ushbu QR kodni skaner qilgan mijozlar to'g'ridan-to'g'ri restoraningiz menyusiga kirishadi.
+      Kodni stol ustiga qo'ying yoki mijozlarga ulashing.
+    </div>
+    <div class="stats" id="stats">
+
+      <div class="stat">
+        <div class="stat-value" >{{view_count}}</div>
+        <div class="stat-label">Ko'rishlar</div>
+      
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>QR kodni skaner qiling va menyuni ko'ring</p>
+    <p style="margin-top: 8px;">🔍 Har qanday QR skaner ilovasi bilan ishlaydi</p>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+// ============================================================
+// QR KOD YUKLAB OLISH SAHIFASI
+// ============================================================
+
+// Cookie olish funksiyasi
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return null;
+}
+
+// Token mavjudligini tekshirish
+const token = getCookie('access_token');
+if (!token) {
+  window.location.href = '/auth/';
+}
+
+// API so'rovlar
+const BASE_API = '/api/v1';
+
+// Restoran ma'lumotlari
+let restoranData = null;
+let qrImageUrl = null;
+
+// Sahifa yuklanganda
+document.addEventListener('DOMContentLoaded', function() {
+  init();
+  applyTheme();
+});
+
+async function init() {
+  try {
+    // Restoran ma'lumotlarini olish
+    const dashboard = await apiCall('/admin/dashboard/');
+    
+    if (dashboard && dashboard.restoran) {
+      restoranData = dashboard.restoran;
+      document.getElementById('restoran-name').textContent = restoranData.name || 'Restoran';
+      document.getElementById('restoran-url').textContent = restoranData.url || 'restoran.uz';
+      
+      // Statistika
+     // document.getElementById('stat-menus').textContent = dashboard.menu_count || 0;
+      //document.getElementById('stat-categories').textContent = dashboard.category_count || 0;
+      //document.getElementById('stat-views').textContent = Math.floor(Math.random() * 500) + 100;
+      
+      // QR kod URL ni yaratish
+      const baseUrl = window.location.origin;
+      const menuUrl = `${baseUrl}/r/${restoranData.url}/`;
+      document.getElementById('qr-url-display').textContent = menuUrl;
+      
+      // QR kod yaratish
+      await generateQRCode(menuUrl);
+    } else {
+      showToast('Ma\'lumot yuklanmadi');
+    }
+  } catch (error) {
+    console.error('Init error:', error);
+    showToast('Xatolik yuz berdi');
+  }
+}
+
+// API call funksiyasi
+async function apiCall(path, opts = {}) {
+  const token = getCookie('access_token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+  };
+  
+  const res = await fetch(BASE_API + path, {
+    headers,
+    credentials: 'same-origin',
+    ...opts
+  });
+  
+  if (res.status === 401) {
+    window.location.href = '/auth/';
+    throw new Error('Unauthorized');
+  }
+  
+  if (!res.ok) {
+    const e = await res.json();
+    throw e;
+  }
+  
+  return res.json();
+}
+
+// QR kod yaratish
+async function generateQRCode(url) {
+  const container = document.getElementById('qr-container');
+  container.innerHTML = '<div class="spinner"></div>';
+  
+  try {
+    // QR kod API orqali (Google Charts API - bepul)
+    const qrApiUrl = `https://quickchart.io/qr?text=${encodeURIComponent(url)}&size=300&margin=2`;
+    
+    // Rasmni yuklab olish
+    const img = document.createElement('img');
+    img.className = 'qr-image';
+    img.alt = 'QR Code';
+    img.onload = function() {
+      container.innerHTML = '';
+      container.appendChild(img);
+      qrImageUrl = qrApiUrl;
+    };
+    img.onerror = function() {
+      container.innerHTML = '<div style="text-align:center"><div>❌</div><div style="font-size:12px">QR kod yaratilmadi</div></div>';
+    };
+    img.src = qrApiUrl;
+    
+  } catch (error) {
+    console.error('QR generation error:', error);
+    container.innerHTML = '<div style="text-align:center"><div>❌</div><div style="font-size:12px">Xatolik</div></div>';
+  }
+}
+
+// QR kodni yuklab olish
+async function downloadQR() {
+  const container = document.getElementById('qr-container');
+  const img = container.querySelector('img');
+  
+  if (!img || !img.src) {
+    showToast('QR kod topilmadi');
+    return;
+  }
+  
+  showToast('Yuklanmoqda...');
+  
+  try {
+    // Rasmni blob sifatida olish
+    const response = await fetch(img.src);
+    const blob = await response.blob();
+    
+    // Yuklab olish linki yaratish
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qr_${restoranData?.url || 'restoran'}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showToast('Yuklab olindi ✓');
+  } catch (error) {
+    console.error('Download error:', error);
+    showToast('Yuklab olishda xatolik');
+  }
+}
+
+// URL nusxalash
+function copyUrl() {
+  const url = document.getElementById('qr-url-display').textContent;
+  
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('URL nusxalandi ✓');
+  }).catch(() => {
+    // Fallback
+    const textarea = document.createElement('textarea');
+    textarea.value = url;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    showToast('URL nusxalandi ✓');
+  });
+}
+
+// Ulashish (Share API)
+function shareQR() {
+  const url = document.getElementById('qr-url-display').textContent;
+  const name = document.getElementById('restoran-name').textContent;
+  
+  if (navigator.share) {
+    navigator.share({
+      title: `${name} - Menyu`,
+      text: `Restoran menyusiga havola:`,
+      url: url
+    }).catch(() => {
+      copyUrl();
+    });
+  } else {
+    copyUrl();
+  }
+}
+
+// Orqaga qaytish
+function goBack() {
+  window.location.href = '/admin1/';
+}
+
+// Toast xabar
+let toastTimeout;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 2500);
+}
+
+// Theme
+function toggleTheme() {
+  const body = document.body;
+  const isLight = body.classList.toggle('light');
+  const btn = document.getElementById('theme-btn');
+  btn.textContent = isLight ? '☀️' : '🌙';
+  localStorage.setItem('theme', isLight ? 'light' : 'dark');
+}
+
+function applyTheme() {
+  const saved = localStorage.getItem('theme');
+  const btn = document.getElementById('theme-btn');
+  if (saved === 'light') {
+    document.body.classList.add('light');
+    if (btn) btn.textContent = '☀️';
+  } else {
+    document.body.classList.remove('light');
+    if (btn) btn.textContent = '🌙';
+  }
+}
+
+// Escape key bilan orqaga
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    goBack();
+  }
+});
+</script>
+</body>
+</html>

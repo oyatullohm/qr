@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Admin Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@300;500;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'menu-admin.css' %}">
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="h-brand">
+     <a href="" id="h-url"> <img src="" alt="Restoran rasmi" id="h-logo"></a>
+      <div>
+        <div class="h-name" id="h-rname">Yuklanmoqda...</div>
+        <div class="h-rest">Admin panel</div>
+
+      </div>
+    </div>
+    <div class="h-right">
+      <div class="h-btn" onclick="toggleTheme()" id="theme-btn">🌙</div>
+      <button class="h-btn" onclick="confirmLogout()">🚪</button>
+      <button  class="h-btn"><a href="/qr/download/"><img class="h-brand"  width="25px"  src="/media/qr-code.png" alt=""></a></button>
+    </div>
+  </header>
+
+  <div class="content">
+    <!-- DASHBOARD -->
+    <div class="page active" id="pg-dash">
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-val" id="st-menu">—</div><div class="stat-label">Jami taomlar</div></div>
+        <div class="stat-card"><div class="stat-val" id="st-cat">—</div><div class="stat-label">Kategoriyalar</div></div>
+        <div class="stat-card"><div class="stat-val" id="st-active">—</div><div class="stat-label">Faol taomlar</div></div>
+        <div class="stat-card"><div class="stat-val" id="st-disc">—</div><div class="stat-label">Chegirmali</div></div>
+      </div>
+      <div class="sec-head">
+        <div class="sec-title">So'nggi taomlar</div>
+        <button class="btn-add" onclick="openMenuForm()">+ Qo'shish</button>
+      </div>
+      <div class="items-list" id="dash-recent"></div>
+    </div>
+
+    <!-- MENU -->
+    <div class="page" id="pg-menu">
+      <div class="sec-head">
+        <div class="sec-title">Menyu</div>
+        <button class="btn-add" onclick="openMenuForm()">+ Taom</button>
+      </div>
+      <div class="filter-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Qidirish..." oninput="filterMenu()" id="menu-search">
+      </div>
+      <div class="cat-chips" id="cat-filter-chips"></div>
+      <div class="items-list" id="menu-list"></div>
+    </div>
+
+    <!-- CATEGORIES -->
+    <div class="page" id="pg-cat">
+      <div class="sec-head">
+        <div class="sec-title">Kategoriyalar</div>
+        <button class="btn-add" onclick="openCatForm()">+ Kategoriya</button>
+      </div>
+      <div class="items-list" id="cat-list"></div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div class="page" id="pg-settings">
+      <div class="sec-head"><div class="sec-title">Restoran sozlamalari</div></div>
+      <div class="stat-card" style="margin-bottom:10px;padding:16px">
+        
+        <label class="f-label">Restoran nomi *</label>
+        <input class="f-input" id="s-name" placeholder="Restoran nomi">
+        
+        <!-- <label class="f-label">URL (slug) *</label> -->
+        <input class="f-input" id="s-url" placeholder="restoran-nomi" style="display: none !important;">
+        <!-- <div class="current-image" style="font-size:12px; margin-top:-8px; margin-bottom:12px;">Faqat lotin harflari, raqamlar va defis</div> -->
+        
+        <label class="f-label">Tavsif</label>
+        <textarea class="f-textarea" id="s-desc" placeholder="Restoran haqida qisqacha" rows="3"></textarea>
+        
+        <label class="f-label">Ofitsiant xizmati (%)</label>
+        <input class="f-input" id="s-service" type="number" placeholder="10" min="0" max="100">
+        
+        <label class="f-label">Restoran rasmi</label>
+        <div class="img-upload" id="img-upload-restoran">
+          <input type="file" accept="image/*" id="s-image" onchange="previewRestoranImg(this)">
+          <span class="up-icon">📷</span>
+          <span class="up-text">Rasm tanlash</span>
+        </div>
+        <div id="current-image-container" style="margin-top: 8px;"></div>
+        <button type="button" class="delete-img-btn" id="delete-image-btn" onclick="deleteRestoranImage()" style="display:none;">🗑 Rasimni o'chirish</button>
+        
+        <!-- <div class="f-toggle-row" style="margin-top: 16px;">
+          <div><div class="f-toggle-label">Restoran faol</div><div class="f-toggle-sub">O'chirsangiz menyu ko'rinmaydi</div></div>
+          <label class="tog"><input type="checkbox" id="s-active" checked><div class="tog-tr"></div><div class="tog-th"></div></label>
+        </div> -->
+      </div>
+      <button class="btn-save" onclick="saveSettings()" id="save-settings-btn">💾 Saqlash</button>
+    </div>
+  </div>
+
+  <nav class="bnav">
+    <button class="bnav-item active" onclick="navTo('dash',this)"><span class="ni">📊</span>Dashboard</button>
+    <button class="bnav-item" onclick="navTo('menu',this)"><span class="ni">🍽</span>Menyu</button>
+    <button class="bnav-item" onclick="navTo('cat',this)"><span class="ni">📂</span>Kategoriya</button>
+    <button class="bnav-item" onclick="navTo('settings',this)"><span class="ni">⚙️</span>Sozlamalar</button>
+  </nav>
+</div>
+
+<div id="overlay" onclick="closeDrawer()"></div>
+<div id="drawer">
+  <div class="drw-handle"></div>
+  <div class="drw-head">
+    <div class="drw-title" id="drw-title">—</div>
+    <div class="drw-close" onclick="closeDrawer()">✕</div>
+  </div>
+  <div class="drw-body" id="drw-body"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ── TOKEN CHECK ───────────────────────────────────────────────
+(function(){
+  function getCookie(n){
+    const v = `; ${document.cookie}`;
+    const p = v.split(`; ${n}=`);
+    if(p.length === 2) return p.pop().split(';').shift();
+    return null;
+  }
+  if(!getCookie('access_token')){
+    window.location.replace('/auth/');
+    throw new Error('no token');
+  }
+})();
+
+// ── CONFIG ────────────────────────────────────────────────────
+const BASE = '/api/v1/admin';
+
+// ── STATE ─────────────────────────────────────────────────────
+let S = { 
+  restoran: null, 
+  categories: [], 
+  menus: [], 
+  activeCat: 'all', 
+  editingId: null 
+};
+
+// ── HELPERS ───────────────────────────────────────────────────
+function getCookie(n){
+  const v = `; ${document.cookie}`;
+  const p = v.split(`; ${n}=`);
+  if(p.length === 2) return p.pop().split(';').shift();
+  return null;
+}
+
+function fmt(n){
+  return Math.round(parseFloat(n) || 0).toLocaleString('uz-UZ');
+}
+
+function safe(s){
+  return (s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+}
+
+function emptyHTML(msg){
+  return `<div class="empty"><div class="em-icon">🍽</div><p>${msg}</p></div>`;
+}
+
+function refreshAll(){
+  renderDash();
+  renderMenuPage();
+  renderCatPage();
+}
+
+function normalizeMenu(menu){
+  return {
+    ...menu,
+    is_active: menu.is_active === true || menu.is_active === 1 || menu.is_active === 'true',
+    is_discount: menu.is_discount === true || menu.is_discount === 1 || menu.is_discount === 'true',
+    is_link_instagram: menu.is_link_instagram === true || menu.is_link_instagram === 1 || menu.is_link_instagram === 'true',
+    price: parseFloat(menu.price) || 0,
+    price_discount: parseFloat(menu.price_discount) || 0,
+    current_price: parseFloat(menu.current_price) || 0
+  };
+}
+
+// ── API ───────────────────────────────────────────────────────
+async function tryRefresh(){
+  const r = getCookie('refresh_token');
+  if(!r) return false;
+  try{
+    const res = await fetch('/api/v1/auth/token/refresh/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refresh: r })
+    });
+    if(!res.ok) return false;
+    const d = await res.json();
+    document.cookie = `access_token=${d.access}; path=/; SameSite=Lax`;
+    return true;
+  } catch(e){
+    return false;
+  }
+}
+
+async function apiCall(path, opts = {}, _retry = false){
+  const token = getCookie('access_token');
+  const csrf = getCookie('csrftoken');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(csrf ? { 'X-CSRFToken': csrf } : {})
+  };
+  
+  const res = await fetch(BASE + path, {
+    headers,
+    credentials: 'same-origin',
+    ...opts
+  });
+  
+  if(res.status === 401){
+    if(_retry){
+      doLogout();
+      window.location.replace('/auth/');
+      throw new Error('Unauthorized');
+    }
+    const ok = await tryRefresh();
+    if(ok) return apiCall(path, opts, true);
+    doLogout();
+    window.location.replace('/auth/');
+    throw new Error('Unauthorized');
+  }
+  
+  if(res.status === 204) return null;
+  if(!res.ok){
+    const e = await res.json();
+    throw e;
+  }
+  return res.json();
+}
+
+async function apiUpload(path, method, formData){
+  const token = getCookie('access_token');
+  const csrf = getCookie('csrftoken');
+  const headers = {
+    ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+    ...(csrf ? { 'X-CSRFToken': csrf } : {})
+  };
+  
+  const res = await fetch(BASE + path, {
+    method,
+    credentials: 'same-origin',
+    headers,
+    body: formData
+  });
+  
+  if(res.status === 401){
+    const ok = await tryRefresh();
+    if(ok) return apiUpload(path, method, formData);
+    doLogout();
+    window.location.replace('/auth/');
+    throw new Error('Unauthorized');
+  }
+  
+  if(!res.ok){
+    const e = await res.json();
+    throw e;
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+async function init(){
+  applyTheme();
+  try{
+    const d = await apiCall('/dashboard/');
+    S.restoran = d.restoran;
+    S.categories = d.categories;
+    S.menus = (d.menus || []).map(normalizeMenu);
+    
+    document.getElementById('h-rname').textContent = S.restoran.name;
+    renderDash();
+    renderMenuPage();
+    renderCatPage();
+    loadSettings();
+    ImageAppend();
+    Url(url=d.restoran.url);
+  } catch(e){
+    if(e.message !== 'Unauthorized'){
+      console.error(e);
+      showToast('❗ Yuklanmadi');
+    }
+  }
+}
+
+function Url(url){
+  const el = document.getElementById('h-url');
+  if(url){
+    el.href = `/r/${url}/`;
+
+  } else {
+    el.href = '';
+  }
+}
+function ImageAppend(){
+  if(S.restoran.image){
+    const img = document.getElementById('h-logo');
+    img.src = S.restoran.image;
+    img.style.display = 'block';
+  }
+}
+// ── NAV ───────────────────────────────────────────────────────
+function navTo(pg, btn){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('pg-' + pg).classList.add('active');
+  btn.classList.add('active');
+  if(pg === 'settings'){
+    loadSettings();
+  }
+}
+
+// ── DASHBOARD ─────────────────────────────────────────────────
+function renderDash(){
+  document.getElementById('st-menu').textContent = S.menus.length;
+  document.getElementById('st-cat').textContent = S.categories.length;
+  document.getElementById('st-active').textContent = S.menus.filter(m => m.is_active).length;
+  document.getElementById('st-disc').textContent = S.menus.filter(m => m.is_discount).length;
+  const recent = [...S.menus].reverse().slice(0,5);
+  document.getElementById('dash-recent').innerHTML = recent.length ? recent.map(itemRowHTML).join('') : emptyHTML('Hali taom yo\'q');
+}
+
+// ── MENU LIST ─────────────────────────────────────────────────
+function renderMenuPage(){
+  const chips = document.getElementById('cat-filter-chips');
+  chips.innerHTML = `<div class="cat-chip active" onclick="filterCat('all',this)">Barchasi</div>`;
+  S.categories.forEach(c => {
+    chips.innerHTML += `<div class="cat-chip" onclick="filterCat(${c.id},this)">${c.name}</div>`;
+  });
+  renderMenuList();
+}
+
+function renderMenuList(){
+  const q = (document.getElementById('menu-search')?.value || '').toLowerCase();
+  let list = [...S.menus];
+  if(S.activeCat !== 'all') list = list.filter(m => m.category?.id == S.activeCat);
+  if(q) list = list.filter(m => m.name.toLowerCase().includes(q));
+  document.getElementById('menu-list').innerHTML = list.length ? list.map(itemRowHTML).join('') : emptyHTML('Taom topilmadi');
+}
+
+function filterCat(id, chip){
+  S.activeCat = id;
+  document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+  chip.classList.add('active');
+  renderMenuList();
+}
+
+function filterMenu(){
+  renderMenuList();
+}
+
+function itemRowHTML(m){
+  const thumb = m.image ? `<img src="${m.image}">` : '🍽';
+  const pct = m.is_discount ? Math.round((1 - parseFloat(m.current_price) / parseFloat(m.price)) * 100) : 0;
+  const dBadge = m.is_discount ? `<span class="badge disc">−${pct}%</span> ` : '';
+  const oBadge = !m.is_active ? `<span class="badge off">Yashirin</span> ` : '';
+  const cBadge = m.category ? `<span class="badge cat">${m.category.name}</span>` : '';
+  return `<div class="item-row ${m.is_active ? '' : 'inactive'}" id="row-${m.id}">
+    <div class="item-thumb">${thumb}</div>
+    <div class="item-info">
+      <div class="item-name">${m.name}</div>
+      <div class="item-meta">${dBadge}${oBadge}${cBadge}</div>
+    </div>
+    <div class="item-price">${fmt(m.current_price)} so'm</div>
+    <div class="item-actions">
+      <div class="ia-btn" onclick="openMenuForm(${m.id})">✏️</div>
+      <div class="ia-btn del" onclick="confirmDelete('menu',${m.id},'${safe(m.name)}')">🗑</div>
+    </div>
+  </div>`;
+}
+
+// ── CATEGORY LIST ─────────────────────────────────────────────
+function renderCatPage(){
+  const el = document.getElementById('cat-list');
+  if(!S.categories.length){
+    el.innerHTML = emptyHTML('Kategoriya yo\'q');
+    return;
+  }
+  el.innerHTML = S.categories.map(c => {
+    const cnt = S.menus.filter(m => m.category?.id == c.id).length;
+    return `<div class="item-row" id="crow-${c.id}">
+     
+        <div class="item-name">${c.name}</div>
+        <div class="item-meta">${cnt} ta taom</div>
+      </div>
+      <div class="item-actions">
+        <div class="ia-btn" onclick="openCatForm(${c.id})">✏️</div>
+        <div class="ia-btn del" onclick="confirmDelete('cat',${c.id},'${safe(c.name)}')">🗑</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── SETTINGS ──────────────────────────────────────────────────
+function loadSettings(){
+  if(!S.restoran) return;
+  document.getElementById('s-name').value = S.restoran.name || '';
+  document.getElementById('s-url').value = S.restoran.url || '';
+  document.getElementById('s-desc').value = S.restoran.description || '';
+  document.getElementById('s-service').value = S.restoran.service || '10';
+  // document.getElementById('s-active').checked = S.restoran.is_active !== false;
+  
+  // Rasmni ko'rsatish
+  const container = document.getElementById('current-image-container');
+
+}
+
+function previewRestoranImg(input){
+  if(!input.files?.[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const container = document.getElementById('current-image-container');
+    container.innerHTML = `
+      <div style="display:flex; align-items:center; gap:10px; margin-top:8px;">
+        <img src="${e.target.result}" style="width:60px; height:60px; object-fit:cover; border-radius:10px;">
+        <span style="font-size:12px; color:var(--text2);">Yangi rasm (saqlanganda yangilanadi)</span>
+      </div>
+    `;
+    document.getElementById('delete-image-btn').style.display = 'block';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+async function deleteRestoranImage(){
+  if(!confirm('Rasmni o\'chirishni xohlaysizmi?')) return;
+  
+  const btn = document.getElementById('save-settings-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saqlanmoqda...';
+  
+  try{
+    const payload = {
+      name: document.getElementById('s-name').value.trim(),
+      url: document.getElementById('s-url').value.trim(),
+      description: document.getElementById('s-desc').value.trim(),
+      service: document.getElementById('s-service').value,
+      // is_active: document.getElementById('s-active').checked,
+      image: null  // Rasmni o'chirish
+    };
+    
+    const result = await apiCall('/update_restoran/', { 
+      method: 'PATCH', 
+      body: JSON.stringify(payload) 
+    });
+    
+    S.restoran = { ...S.restoran, ...(result || payload), image: null };
+    document.getElementById('h-rname').textContent = payload.name;
+    document.getElementById('current-image-container').innerHTML = '<div class="current-image">Rasm yo\'q</div>';
+    document.getElementById('delete-image-btn').style.display = 'none';
+    document.getElementById('s-image').value = '';
+    showToast('Rasm o\'chirildi ✓');
+  } catch(e){
+    console.error(e);
+    showToast('❗ Xatolik');
+  } finally{
+    btn.disabled = false;
+    btn.textContent = '💾 Saqlash';
+  }
+}
+async function saveSettings(){
+  const name = document.getElementById('s-name').value.trim();
+  const url = document.getElementById('s-url').value.trim();
+  
+  if(!name){ showToast('Restoran nomini kiriting ❗'); return; }
+  if(!url){ showToast('URL ni kiriting ❗'); return; }
+  if(!/^[a-z0-9\-]+$/.test(url)){ 
+    showToast('URL faqat lotin harflari, raqamlar va defis dan iborat bo\'lishi kerak ❗'); 
+    return; 
+  }
+  
+  const btn = document.getElementById('save-settings-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saqlanmoqda...';
+  
+  const file = document.getElementById('s-image')?.files?.[0];
+  const apiPath = '/update_restoran/';
+  
+  try{
+    let result;
+    
+    // 🔥 Boolean ni to'g'ri yuborish
+    // const isActive = document.getElementById('s-active').checked;  // Bu boolean (true/false)
+    
+    if(file){
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('url', url);
+      fd.append('description', document.getElementById('s-desc').value.trim());
+      fd.append('service', document.getElementById('s-service').value);
+      // fd.append('is_active', isActive ? 'true' : 'false');  // String yuborish
+      fd.append('image', file);
+      result = await apiUpload(apiPath, 'PATCH', fd);
+    } else {
+      const payload = {
+        name: name,
+        url: url,
+        description: document.getElementById('s-desc').value.trim(),
+        service: document.getElementById('s-service').value,
+        // is_active: isActive  // 🔥 Boolean yuborish
+      };
+      result = await apiCall(apiPath, { 
+        method: 'PATCH', 
+        body: JSON.stringify(payload) 
+      });
+    }
+    
+    S.restoran = { ...S.restoran, ...(result || payload) };
+    if(result?.image) S.restoran.image = result.image;
+    document.getElementById('h-rname').textContent = name;
+    document.getElementById('s-image').value = '';
+    loadSettings();
+    showToast('Restoran ma\'lumotlari saqlandi ✓');
+    
+  } catch(e){
+    console.error(e);
+    const msg = typeof e === 'object' ? JSON.stringify(e) : 'Xatolik';
+    showToast('❗ ' + msg);
+  } finally{
+    btn.disabled = false;
+    btn.textContent = '💾 Saqlash';
+  }
+}
+
+
+
+// ── LOGOUT ────────────────────────────────────────────────────
+function confirmLogout(){
+  document.getElementById('drw-title').textContent = 'Chiqish';
+  document.getElementById('drw-body').innerHTML = `
+    <div class="confirm-body">
+      <div class="confirm-icon">🚪</div>
+      <div class="confirm-msg">Tizimdan chiqmoqchimisiz?</div>
+      <div class="confirm-sub">Keyingi safar qayta kirishingiz kerak bo'ladi</div>
+      <div class="confirm-btns">
+        <button class="c-btn" onclick="closeDrawer()">Bekor qilish</button>
+        <button class="c-btn danger" onclick="doLogout()">Ha, chiqish</button>
+      </div>
+    </div>`;
+  openDrawer();
+}
+
+function doLogout(){
+  document.cookie = 'access_token=; path=/; max-age=0';
+  document.cookie = 'refresh_token=; path=/; max-age=0';
+  document.cookie = 'sessionid=; path=/; max-age=0';
+  window.location.replace('/auth/');
+}
+
+// ── MENU FORM ─────────────────────────────────────────────────
+function openMenuForm(id = null){
+  const m = id ? S.menus.find(x => x.id == id) : null;
+  S.editingId = id;
+  document.getElementById('drw-title').textContent = m ? 'Taomni tahrirlash' : 'Yangi taom';
+  
+  const catOpts = S.categories.map(c => `<option value="${c.id}" ${m?.category?.id == c.id ? 'selected' : ''}>${c.name}</option>`).join('');
+  
+  document.getElementById('drw-body').innerHTML = `
+    <label class="f-label">Kategoriya *</label>
+    <select class="f-select" id="df-cat"><option value="">— tanlang —</option>${catOpts}</select>
+
+    <label class="f-label">Taom nomi *</label>
+    <input class="f-input" id="df-name" placeholder="Osh, Shashlik..." value="${safe(m?.name || '')}">
+
+    <label class="f-label">Tavsif</label>
+    <textarea class="f-textarea" id="df-desc" placeholder="Qisqacha tavsif">${m?.description || ''}</textarea>
+
+    <div class="f-row">
+      <div>
+        <label class="f-label">Narx (so'm) *</label>
+        <input class="f-input" id="df-price" type="number" min="0" placeholder="15000" value="${m ? parseFloat(m.price) : ''}">
+      </div>
+      <div>
+        <label class="f-label">Chegirma narxi</label>
+        <input class="f-input" id="df-dPrice" type="number" min="0" placeholder="12000" value="${m?.is_discount ? parseFloat(m.price_discount) : ''}">
+      </div>
+    </div>
+
+    <label class="f-label">Rasm</label>
+    <div class="img-upload" id="img-upload-menu">
+      <input type="file" accept="image/*" id="df-img" onchange="previewImg(this, 'img-upload-menu')">
+      <span class="up-icon">📷</span><span class="up-text">Rasm tanlash</span>
+    </div>
+
+    <div class="f-toggle-row">
+      <div><div class="f-toggle-label">Chegirma faol</div><div class="f-toggle-sub">Chegirma narxini ko'rsatadi</div></div>
+      <label class="tog">
+        <input type="checkbox" id="df-isDisc" ${m?.is_discount ? 'checked' : ''}>
+        <div class="tog-tr"></div><div class="tog-th"></div>
+      </label>
+    </div>
+    <div class="f-toggle-row">
+      <div><div class="f-toggle-label">Faol (ko'rinadigan)</div><div class="f-toggle-sub">O'chirsangiz menyuda ko'rinmaydi</div></div>
+      <label class="tog">
+        <input type="checkbox" id="df-isActive" ${m?.is_active ? 'checked' : ''}>
+        <div class="tog-tr"></div><div class="tog-th"></div>
+      </label>
+    </div>
+    <div class="f-toggle-row">
+      <div><div class="f-toggle-label">Instagram video</div></div>
+      <label class="tog">
+        <input type="checkbox" id="df-isInsta" ${m?.is_link_instagram ? 'checked' : ''}>
+        <div class="tog-tr"></div><div class="tog-th"></div>
+      </label>
+    </div>
+    <input class="f-input" id="df-insta" placeholder="https://instagram.com/p/..." value="${m?.link_instagram || ''}">
+
+    <div class="sep"></div>
+    <button class="btn-save" id="menu-save-btn" onclick="saveMenu()">💾 Saqlash</button>
+    ${m ? `<button class="btn-save" style="background:var(--bg3);color:var(--red);border:1px solid rgba(217,95,75,0.3);margin-top:8px" onclick="confirmDelete('menu',${m.id},'${safe(m.name)}')">🗑 O'chirish</button>` : ''}
+  `;
+  openDrawer();
+}
+
+async function saveMenu(){
+  const name = document.getElementById('df-name').value.trim();
+  const price = document.getElementById('df-price').value;
+  const catId = document.getElementById('df-cat').value;
+  
+  if(!name){ showToast('Taom nomini kiriting ❗'); return; }
+  if(!price){ showToast('Narxni kiriting ❗'); return; }
+  if(!catId){ showToast('Kategoriyani tanlang ❗'); return; }
+
+  const btn = document.getElementById('menu-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saqlanmoqda...';
+
+  const file = document.getElementById('df-img')?.files?.[0];
+  const apiPath = S.editingId ? `/menu/${S.editingId}/update/` : '/menu_create/';
+  const method = S.editingId ? 'PATCH' : 'POST';
+
+  try{
+    let result;
+    
+    if(file){
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('category_id', parseInt(catId));
+      fd.append('price', parseFloat(price));
+      fd.append('price_discount', parseFloat(document.getElementById('df-dPrice').value || 0));
+      fd.append('is_discount', document.getElementById('df-isDisc').checked);
+      fd.append('is_active', document.getElementById('df-isActive').checked);
+      fd.append('description', document.getElementById('df-desc').value.trim());
+      fd.append('link_instagram', document.getElementById('df-insta').value.trim());
+      fd.append('is_link_instagram', document.getElementById('df-isInsta').checked);
+      fd.append('image', file);
+      result = await apiUpload(apiPath, method, fd);
+    } else {
+      const payload = {
+        name: name,
+        category_id: parseInt(catId),
+        price: parseFloat(price),
+        price_discount: parseFloat(document.getElementById('df-dPrice').value || 0),
+        is_discount: document.getElementById('df-isDisc').checked,
+        is_active: document.getElementById('df-isActive').checked,
+        description: document.getElementById('df-desc').value.trim(),
+        link_instagram: document.getElementById('df-insta').value.trim(),
+        is_link_instagram: document.getElementById('df-isInsta').checked
+      };
+      result = await apiCall(apiPath, { method, body: JSON.stringify(payload) });
+    }
+
+    const cat = S.categories.find(c => c.id == catId);
+    const merged = {
+      id: result?.id || S.editingId,
+      name: name,
+      price: parseFloat(price),
+      price_discount: parseFloat(document.getElementById('df-dPrice').value || 0),
+      is_discount: document.getElementById('df-isDisc').checked,
+      is_active: document.getElementById('df-isActive').checked,
+      current_price: document.getElementById('df-isDisc').checked 
+        ? parseFloat(document.getElementById('df-dPrice').value || 0)
+        : parseFloat(price),
+      description: document.getElementById('df-desc').value.trim(),
+      image: result?.image || (S.editingId ? S.menus.find(m => m.id == S.editingId)?.image : null),
+      link_instagram: document.getElementById('df-insta').value.trim(),
+      is_link_instagram: document.getElementById('df-isInsta').checked,
+      order: result?.order || 0,
+      category: cat || { id: parseInt(catId), name: '' }
+    };
+
+    if(S.editingId){
+      const idx = S.menus.findIndex(m => m.id == S.editingId);
+      if(idx > -1) S.menus[idx] = merged;
+    } else {
+      S.menus.push(merged);
+    }
+
+    closeDrawer();
+    refreshAll();
+    showToast(S.editingId ? 'Taom yangilandi ✓' : 'Taom qo\'shildi ✓');
+    
+  } catch(e){
+    console.error(e);
+    const msg = typeof e === 'object' ? JSON.stringify(e) : 'Xatolik';
+    showToast('❗ ' + msg);
+  } finally{
+    btn.disabled = false;
+    btn.textContent = '💾 Saqlash';
+  }
+}
+
+// ── CATEGORY FORM ─────────────────────────────────────────────
+function openCatForm(id = null){
+  const c = id ? S.categories.find(x => x.id == id) : null;
+  S.editingId = id;
+  document.getElementById('drw-title').textContent = c ? 'Kategoriyani tahrirlash' : 'Yangi kategoriya';
+  document.getElementById('drw-body').innerHTML = `
+    <label class="f-label">Kategoriya nomi *</label>
+    <input class="f-input" id="cf-name" placeholder="Masalan: Birinchi taomlar" value="${safe(c?.name || '')}">
+
+
+
+    <div class="sep"></div>
+    <button class="btn-save" id="cat-save-btn" onclick="saveCat()">💾 Saqlash</button>
+    ${c ? `<button class="btn-save" style="background:var(--bg3);color:var(--red);border:1px solid rgba(217,95,75,0.3);margin-top:8px" onclick="confirmDelete('cat',${c.id},'${safe(c.name)}')">🗑 O'chirish</button>` : ''}
+  `;
+  openDrawer();
+}
+
+async function saveCat(){
+  const name = document.getElementById('cf-name').value.trim();
+  if(!name){ showToast('Nom kiriting ❗'); return; }
+  
+  const btn = document.getElementById('cat-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saqlanmoqda...';
+  
+  const file = document.getElementById('cf-img')?.files?.[0];
+  const apiPath = S.editingId ? `/category/${S.editingId}/update/` : '/category_create/';
+  const method = S.editingId ? 'PATCH' : 'POST';
+  
+  try{
+    let result;
+    if(file){
+      const fd = new FormData();
+      fd.append('name', name);
+      fd.append('image', file);
+      result = await apiUpload(apiPath, method, fd);
+    } else {
+      result = await apiCall(apiPath, { method, body: JSON.stringify({ name }) });
+    }
+    
+    if(S.editingId){
+      const idx = S.categories.findIndex(c => c.id == S.editingId);
+      if(idx > -1) S.categories[idx] = { ...S.categories[idx], ...(result || { name }) };
+    } else {
+      S.categories.push(result || { name, id: Date.now(), image: null });
+    }
+    closeDrawer();
+    refreshAll();
+    showToast(S.editingId ? 'Kategoriya yangilandi ✓' : 'Kategoriya qo\'shildi ✓');
+  } catch(e){
+    console.error(e);
+    showToast('❗ Xatolik');
+  } finally{
+    btn.disabled = false;
+    btn.textContent = '💾 Saqlash';
+  }
+}
+
+// ── DELETE ────────────────────────────────────────────────────
+function confirmDelete(type, id, name){
+  document.getElementById('drw-title').textContent = 'O\'chirish';
+  document.getElementById('drw-body').innerHTML = `
+    <div class="confirm-body">
+      <div class="confirm-icon">🗑️</div>
+      <div class="confirm-msg">"${name}"ni o'chirmoqchimisiz?</div>
+      <div class="confirm-sub">Bu amalni ortga qaytarib bo'lmaydi</div>
+      <div class="confirm-btns">
+        <button class="c-btn" onclick="closeDrawer()">Bekor qilish</button>
+        <button class="c-btn danger" onclick="doDelete('${type}',${id})">Ha, o'chirish</button>
+      </div>
+    </div>`;
+  openDrawer();
+}
+
+async function doDelete(type, id){
+  try{
+    if(type === 'menu'){
+      await apiCall(`/menu/${id}/delete/`, { method: 'DELETE' });
+      S.menus = S.menus.filter(m => m.id != id);
+    } else {
+      await apiCall(`/category/${id}/delete/`, { method: 'DELETE' });
+      S.categories = S.categories.filter(c => c.id != id);
+      S.menus = S.menus.filter(m => m.category?.id != id);
+    }
+    closeDrawer();
+    refreshAll();
+    showToast('O\'chirildi ✓');
+  } catch(e){
+    console.error(e);
+    showToast('❗ O\'chirishda xatolik');
+  }
+}
+
+// ── DRAWER ────────────────────────────────────────────────────
+function openDrawer(){
+  document.getElementById('drawer').classList.add('show');
+  document.getElementById('overlay').classList.add('show');
+}
+
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('show');
+  document.getElementById('overlay').classList.remove('show');
+  S.editingId = null;
+}
+
+// ── IMAGE PREVIEW ─────────────────────────────────────────────
+function previewImg(input, wrapId){
+  if(!input.files?.[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const wrap = document.getElementById(wrapId);
+    let img = wrap.querySelector('img.img-preview');
+    if(!img){
+      img = document.createElement('img');
+      img.className = 'img-preview';
+      wrap.insertBefore(img, wrap.firstChild);
+    }
+    img.src = e.target.result;
+    const icons = wrap.querySelectorAll('.up-icon, .up-text');
+    icons.forEach(el => el.style.display = 'none');
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ── THEME ─────────────────────────────────────────────────────
+function toggleTheme(){
+  const l = document.documentElement.classList.toggle('light');
+  document.getElementById('theme-btn').textContent = l ? '☀️' : '🌙';
+  try{ localStorage.setItem('theme', l ? 'light' : 'dark'); } catch(e){}
+}
+
+function applyTheme(){
+  try{
+    if(localStorage.getItem('theme') === 'light'){
+      document.documentElement.classList.add('light');
+      document.getElementById('theme-btn').textContent = '☀️';
+    }
+  } catch(e){}
+}
+
+// ── TOAST ─────────────────────────────────────────────────────
+let _tt;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_tt);
+  _tt = setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+
+
+
+// START
+init();
+
+
+let menuImages = [];
+
+// Rasmlar ro'yxatini yuklash
+async function loadMenuImages() {
+  const grid = document.getElementById('image-grid');
+  grid.innerHTML = '<div style="text-align: center; padding: 40px;"><div class="spinner"></div> Yuklanmoqda...</div>';
+  
+  try {
+    const response = await apiCall('/images/menu/');
+    
+    if (response && Array.isArray(response)) {
+      menuImages = response;
+      displayMenuImages();
+    } else {
+      grid.innerHTML = '<div style="text-align: center; padding: 40px;">📂 Hech qanday rasm topilmadi</div>';
+    }
+  } catch (error) {
+    console.error('Error loading images:', error);
+    grid.innerHTML = '<div style="text-align: center; padding: 40px;">❌ Xatolik yuz berdi</div>';
+  }
+}
+
+// Rasmlarni ko'rsatish
+function displayMenuImages() {
+  const grid = document.getElementById('image-grid');
+  
+  if (menuImages.length === 0) {
+    grid.innerHTML = '<div style="text-align: center; padding: 40px;">📂 Rasm yo\'q. Yangi rasm yuklang</div>';
+    return;
+  }
+  
+  grid.innerHTML = menuImages.map(img => `
+    <div class="image-item" onclick="selectImage('${img.url}', '${img.name}')">
+      <img src="${img.url}" alt="${img.name}" onerror="this.src='https://placehold.co/200x150?text=Error'">
+      <div class="image-item-name">${img.name.length > 20 ? img.name.substring(0, 20) + '...' : img.name}</div>
+    </div>
+  `).join('');
+}
+
+// Rasm tanlash
+function selectImage(imageUrl, imageName) {
+  // Preview ko'rsatish
+  const previewDiv = document.getElementById('selected-image-preview');
+  previewDiv.innerHTML = `
+    <div class="selected-preview">
+      <img src="${imageUrl}">
+      <div style="flex: 1;">
+        <div style="font-size: 13px; font-weight: 500;">Tanlangan rasm</div>
+        <div style="font-size: 11px; color: var(--text2);">${imageName}</div>
+      </div>
+      <button type="button" class="btn-icon" onclick="clearSelectedImage()" title="Tozalash">🗑</button>
+    </div>
+  `;
+  
+  // URL ni saqlash
+  document.getElementById('selected-image-url').value = imageUrl;
+  
+  // Modalni yopish
+  closeImagePicker();
+  
+  showToast('Rasm tanlandi ✓');
+}
+
+// Tanlangan rasmni tozalash
+function clearSelectedImage() {
+  document.getElementById('selected-image-preview').innerHTML = '';
+  document.getElementById('selected-image-url').value = '';
+  showToast('Rasm tozalandi');
+}
+
+// Rasm tanlash modal oynasini ko'rsatish
+function showImagePicker() {
+  const modal = document.getElementById('image-picker-modal');
+  modal.classList.add('active');
+  loadMenuImages();
+}
+
+// Modal oynani yopish
+function closeImagePicker() {
+  const modal = document.getElementById('image-picker-modal');
+  modal.classList.remove('active');
+}
+
+// File upload trigger
+function triggerFileUpload() {
+  document.getElementById('df-img').click();
+}
+
+// Modal file upload
+document.getElementById('modal-file-input').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  
+  if (!file.type.startsWith('image/')) {
+    showToast('Faqat rasm fayllar ruxsat etiladi ❗');
+    return;
+  }
+  
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Rasm hajmi 5MB dan katta bo\'lmasligi kerak ❗');
+    return;
+  }
+  
+  showToast('Yuklanmoqda...');
+  
+  // Bu yerda rasmni serverga yuklash kodi
+  const fd = new FormData();
+  fd.append('image', file);
+  fd.append('folder', 'menu_images');
+  
+  try {
+    const result = await apiUpload('/upload/image/', 'POST', fd);
+    showToast('Rasm yuklandi ✓');
+    // Rasmlar ro'yxatini yangilash
+    setTimeout(() => loadMenuImages(), 500);
+  } catch (error) {
+    showToast('Yuklashda xatolik ❗');
+  }
+});
+
+// Escape bilan yopish
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeImagePicker();
+  }
+});
+</script>
+</body>
+</html>
